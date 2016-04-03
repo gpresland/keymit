@@ -1,7 +1,7 @@
 {
   "name": "keymit",
-  "version": "0.0.0",
-  "description": "A keystore with event emitter subscriptions to branches.",
+  "version": "0.0.1",
+  "description": "An object store with event emitters that you can subscribe to",
   "main": "index.js",
   "directories": {
     "test": "tests"
@@ -11,7 +11,7 @@
   },
   "keywords": [
     "keymit",
-    "key",
+    "object store",
     "emitter"
   ],
   "author": "Greg Presland",
