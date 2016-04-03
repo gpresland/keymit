@@ -1,6 +1,6 @@
 {
   "name": "keymit",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "A keystore with event emitter subscriptions to branches.",
   "main": "index.js",
   "directories": {
