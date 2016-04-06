@@ -127,14 +127,18 @@ module.exports = class Keymit extends EventEmitter {
       callback: (arguments.length === 2) ? arguments[1] : arguments[0]
     };
 
+    // If no current subscriptions exist, create a new entry
     if (!this._subscriptions.hasOwnProperty(args.path)) {
       this._subscriptions[args.path] = 0;
     }
 
+    // Increment number of subscribers to this path
     this._subscriptions[args.path]++;
 
+    // Bind callback to emitter
     this.on(args.path, args.callback);
 
+    // If triggerNow, immediately invoke callback with the values
     if (triggerNow) {
       this.emit(args.path, this.get(args.path));
     }

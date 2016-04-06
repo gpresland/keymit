@@ -41,6 +41,15 @@ keymit.set({
   'usa.taxas.austin': 'my other string',
   'usa.texas.dalas': true
 });
+
+// If your keys values have been serialized from another language, you can use those too
+keymit.set([
+  { 'canada.alberta.calgary': 'my string' },
+  { 'canada.alberta.edmonton': 123 },
+  { 'canada.ontario.london': [1, 2, 3] },
+  { 'usa.taxas.austin': 'my other string' },
+  { 'usa.texas.dalas': true }
+]);
 ```
 
 #### Gettings key values

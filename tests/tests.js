@@ -44,6 +44,19 @@ describe('Keymit', function () {
     assert.equal(3, keymit._store.earth.usa.michigan.detroit);
   });
 
+  it('Should set multiple key/values from an array', function () {
+    keymit.set([{
+      'earth.canada.ontario.toronto': 1
+    }, {
+      'earth.canada.ontario.windsor': 2
+    }, {
+      'earth.usa.michigan.detroit': 3
+    }]);
+    assert.equal(1, keymit._store.earth.canada.ontario.toronto);
+    assert.equal(2, keymit._store.earth.canada.ontario.windsor);
+    assert.equal(3, keymit._store.earth.usa.michigan.detroit);
+  });
+
   it('Should set multiple key/values from an object', function () {
     keymit.set({
       earth: {
