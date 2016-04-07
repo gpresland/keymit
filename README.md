@@ -11,7 +11,7 @@ only certain branches, or subscribe to only when a single value changes.
 #### Creating a keymit object
 
 ```js
-const Keymit = require('deepkey');
+const Keymit = require('keymit');
 
 let keymit = new Keymit();
 ```
