@@ -23,17 +23,24 @@ let keymit = new Keymit();
 keymit.set({
   canada: {
     ontario: {
-      toronto: 1
+      toronto: {
+        population: 2615000,
+        temperature: 27.8
+      }
     }
   },
   usa: {
     texas: {
-      huston: 1
+      huston: {
+        population: 2196000,
+        temperature: 30.2
+      }
     }
   }
 });
 
-// Alternatively, you can set/update values with flat keys (default delimiter is a '.')
+// Alternatively, you can set/update values with flat keys
+// (default delimiter is a '.')
 keymit.set({
   'canada.alberta.calgary': 'my string',
   'canada.alberta.edmonton': 123,
@@ -42,7 +49,8 @@ keymit.set({
   'usa.texas.dalas': true
 });
 
-// If your keys values have been serialized from another language, you can use those too
+// If your keys values have been serialized from another language (such as C#),
+// you can simply pass those too
 keymit.set([
   { 'canada.alberta.calgary': 'my string' },
   { 'canada.alberta.edmonton': 123 },
@@ -101,28 +109,43 @@ keymit.unsubscribe('canada.ontario.toronto', onChange);
 ##### Methods
 
 - ()
+  - Creates a new keymit instance.
   - **Parameters**
     - `String`: optional delimiter for all keys [default is '.']
 - Delete
+  - Deletes a branch or value from the store.
   - **Parameters**
     - `String`: optional delimited path to delete [defaults to deleting all records] 
 - set
+  - Sets a branch or value in the store.
   - **Parameters**
     - `String` or `Object`: The key string or object of key values
     - `*`: value to use if previous parameter was a string 
 - get
+  - Gets a branch or value from the store.
   - **Parameters**
     - `String`: optional delimited path to filter by
 - subscribe
+  - Adds a subscription.
   - **Parameters**
     - `String`: optional delimited path to subscribe to [defaults to all records]
     - `Function`: callback to run on change
-    - `Boolean`: optionally have the callback immediately execute with the current value [defaults is true]
+    - `Object`: optional options
+      - `Boolean`: **flatten** flatten the records with the delimiter before passing them back [default is false]
+      - `Boolean`: **triggerNow** have the callback immediately execute with the current value [defaults is false]
+      - `Boolean`: **lean** have only changes sent (excluding the initial triggerNow) [default is false]
 - unsubscribe
+  - Remove a subscription.
   - **Parameters**
     - `String`: optional delimited path to unsubscribe to [defaults to all records]
     - `Function`: callback to unsubscribe
+- unsubscribeAll
+  - Removes all subscriptions.
+
+##### Properties
+
+  - `listenerCount` (Number): Number of active subscriptions 
 
 ## Tests
 
-Tests under `tests/` use `npm mocha` module.
+Install `npm mocha` either local or globally and run `mocha tests`.

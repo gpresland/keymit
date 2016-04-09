@@ -1,6 +1,6 @@
 {
   "name": "keymit",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "An object store with event emitters that you can subscribe to",
   "main": "index.js",
   "directories": {

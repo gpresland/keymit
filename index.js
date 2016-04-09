@@ -5,16 +5,15 @@
  *
  * @date      02 April 2016
  * @author    Greg Presland
- * @version   0.0.0
  *
  */
 
 'use strict';
 
-const EventEmitter = require('events').EventEmitter;
+const Subscription = require('./lib/subscriptions');
 const utils = require('./lib/object-utils');
 
-module.exports = class Keymit extends EventEmitter {
+module.exports = class Keymit {
 
   /**
    * Constructor
@@ -22,7 +21,6 @@ module.exports = class Keymit extends EventEmitter {
    * @param  {String}  delimiter  [OPTIONAL] delimiter of flattened branches. Default is a decimal "."
    */
   constructor(delimiter) {
-    super();
 
     /**
      * Delimiter in branch path names
@@ -37,10 +35,18 @@ module.exports = class Keymit extends EventEmitter {
     this._store = {};
 
     /**
-     * Subscription paths with count
+     * Subscription tracker
      * @type {Object}
      */
-    this._subscriptions = {};
+    this._subscriptions = new Subscription();
+  }
+
+  /**
+   * Gets the number of listeners
+   *
+   */
+  get listenerCount() {
+    return this._subscriptions.listenerCount;
   }
 
   /**
@@ -100,14 +106,24 @@ module.exports = class Keymit extends EventEmitter {
     // Set values
     utils.merge(this._store, keyValues, this.delimiter);
 
-    // Get list of paths updated
-    let pathsUpdated = this._paths(keyValues);
+    // Flatten changes into a list
+    let flattenedChanges = utils.flatten(keyValues, this.delimiter);
+    // Check changes against each subscription
+    this._subscriptions.all.forEach((subscription) => {
 
-    // Emits paths that received changes
-    Object.keys(this._subscriptions).forEach((path) => {
-      if (pathsUpdated.indexOf(path) >= 0) {
-        this.emit(path, this.get(path));
+      // Records that are relevant to this subscription
+      let records = (subscription.lean) ?
+        this._generateMatching(flattenedChanges, subscription.path) :
+        this.get(subscription.path);
+
+      // Flatten if requested
+      if (!subscription.flatten && typeof records === 'object' && !Array.isArray(records) && records !== null) {
+        records = utils.expand(records, this.delimiter);
       }
+
+      //console.log(records);
+      // Emit changes
+      subscription.listener(records);
     });
   }
 
@@ -116,31 +132,43 @@ module.exports = class Keymit extends EventEmitter {
    *
    * @param  {String}    path        The branch to subscribe to
    * @param  {Function}  callback    The function to run on updates to the branch
-   * @param  {Boolean}   triggerNow  [OPTIONAL] execute callback with current value
+   * @param  {Object}    options     [OPTIONAL]
+   * @param  {Boolean}   options.lean        [OPTIONAL] subscribe will give only changes
+   * @param  {Boolean}   options.triggerNow  [OPTIONAL] execute callback with current value
    */
-  subscribe(path, callback, triggerNow) {
-
-    triggerNow = triggerNow || true;
+  subscribe(path, listener, options) {
 
     let args = {
-      path: (arguments.length === 2) ? arguments[0] : '',
-      callback: (arguments.length === 2) ? arguments[1] : arguments[0]
+      path: '',
+      listener: null,
+      options: {
+        flatten: false,
+        triggerNow: false,
+        lean: false
+      }
     };
 
-    // If no current subscriptions exist, create a new entry
-    if (!this._subscriptions.hasOwnProperty(args.path)) {
-      this._subscriptions[args.path] = 0;
-    }
+    // Map arguments
+    for (let key in arguments) {
+      let arg = arguments[key];
+      if (typeof arg === 'string') args.path = arg;
+      if (typeof arg === 'function') args.listener = arg;
+      if (typeof arg === 'object') {
+        for (let key in arg) {
+          args.options[key] = arg[key];
+        }
+      }
+    };
 
-    // Increment number of subscribers to this path
-    this._subscriptions[args.path]++;
+    // Cancel subscription if there is no listener
+    if (args.listener === null) return;
 
-    // Bind callback to emitter
-    this.on(args.path, args.callback);
+    // Add the subscription for tracking
+    this._subscriptions.add(args.path, args.listener, args.options.lean, args.options.flatten);
 
-    // If triggerNow, immediately invoke callback with the values
-    if (triggerNow) {
-      this.emit(args.path, this.get(args.path));
+    // If triggerNow, immediately invoke listener with the values
+    if (args.options.triggerNow) {
+      args.listener(this.get(args.path));
     }
   }
 
@@ -148,23 +176,51 @@ module.exports = class Keymit extends EventEmitter {
    * Unsubscribe to branch/leaf changes
    *
    * @param  {String}    path      The path to unsubscribe to
-   * @param  {Function}  callback  The function that was used to subscribe to the branch
+   * @param  {Function}  listener  The function that was used to subscribe to the branch
    */
-  unsubscribe(path, callback) {
+  unsubscribe(path, listener) {
 
     let args = {
-      path: (arguments.length === 2) ? arguments[0] : '',
-      callback: (arguments.length === 2) ? arguments[1] : arguments[0]
+      path: '',
+      listener: null
     };
 
-    if (this._subscriptions.hasOwnProperty([args.path])) {
-      if (this._subscriptions[args.path] > 1) {
-        this._subscriptions[args.path]--;
-      } else {
-        delete this._subscriptions[args.path];
+    // Map arguments
+    for (let key in arguments) {
+      let arg = arguments[key];
+      if (typeof arg === 'string') args.path = arg;
+      if (typeof arg === 'function') args.listener = arg;
+    };
+
+    // Remove the subscription from tracking
+    this._subscriptions.remove(args.path, args.listener);
+  }
+
+  /**
+   * Remove all subscriptions
+   *
+   */
+  unsubscribeAll() {
+    this._subscriptions.flush();
+  }
+
+  /**
+   * Gets all sub
+   *
+   * @param  {Object}  object  The flattened source object
+   * @param  {String}  path    The path to filter by
+   */
+  _generateMatching(object, path) {
+
+    let updates = {};
+
+    for (let key in object) {
+      if (key.startsWith(path)) {
+        updates[key] = object[key];
       }
-      this.removeListener(args.path, args.callback);
     }
+
+    return updates;
   }
 
   /**
@@ -173,13 +229,15 @@ module.exports = class Keymit extends EventEmitter {
    * @param  {Object}  keyValues  The key/values set
    * @param  {String}  base       The base path to prefix
    * @param  {Array}   paths      Paths to ignore
+   * @return {Array}
    */
-  _paths(keyValues, base, paths) {
+  _generatePathList(keyValues, base, paths) {
 
     base = base || '';
     paths = paths || [];
 
-    Object.keys(keyValues).forEach((key) => {
+    for (let key in keyValues) {
+
       let value = keyValues[key];
       let relativeKey = '';
       let parts = `${base}${key}`.split(this.delimiter);
@@ -194,13 +252,13 @@ module.exports = class Keymit extends EventEmitter {
 
       // Recursively add paths
       if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
-        this._paths(value, `${relativeKey}.`, paths);
+        this._generatePathList(value, `${relativeKey}.`, paths);
       } else {
         if (paths.indexOf(relativeKey) === -1) {
           paths.push(relativeKey);
         }
       }
-    });
+    };
 
     return paths;
   }
