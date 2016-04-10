@@ -10,6 +10,7 @@
 
 'use strict';
 
+const Store = require('./lib/store');
 const Subscription = require('./lib/subscriptions');
 const utils = require('./lib/object-utils');
 
@@ -32,7 +33,7 @@ module.exports = class Keymit {
      * Data store
      * @type {Object}
      */
-    this._store = {};
+    this._store = new Store(this.delimiter);
 
     /**
      * Subscription tracker
@@ -55,8 +56,7 @@ module.exports = class Keymit {
    * @param  {String}  branch  The branch to remove
    */
   delete(path) {
-    path = path || '';
-    utils.delete(this._store, path, this.delimiter);
+    this._store.delete(path);
   }
 
   /**
@@ -69,22 +69,20 @@ module.exports = class Keymit {
   get(path, flatten) {
 
     path = path || '';
+    flatten = flatten || false;
 
-    let results = utils.filter(this._store, path, this.delimiter);
-
-    // Not found
-    if (typeof results === 'undefined') return;
+    let results = this._store.get(path);
 
     // Primitive found
     if (typeof results !== 'object') return results;
 
     // Flatten keys
-    if (flatten) {
-      results = utils.flatten(results, this.delimiter);
+    if (!flatten) {
+      results = utils.expand(results, this.delimiter);
     }
 
     // Return a copy by value
-    return JSON.parse(JSON.stringify(results));
+    return results;
   }
 
   /**
@@ -94,26 +92,40 @@ module.exports = class Keymit {
    * @param  {Object}  value  The value to set
    */
   set(key, value) {
+
     let keyValues = {};
 
-    // Convert key/value into a single object if they are split
-    if (arguments.length === 2) {
+    // Process key values in array form. This is most likely serialized by
+    // another programming language such as a C# Dictionary.
+    if (Array.isArray(arguments[0])) {
+      arguments[0].forEach((keyValue) => {
+        let key = Object.keys(keyValue)[0];
+        let value = keyValue[key];
+        keyValues[key] = value;
+      });
+    } else if (typeof arguments[0] === 'string') {
       keyValues[key] = value;
-    } else {
+    } else if (typeof arguments[0] === 'object') {
       keyValues = key;
+    } else {
+      throw new TypeError();
     }
 
-    // Set values
-    utils.merge(this._store, keyValues, this.delimiter);
+    // Make sure changes are flattened into key values
+    let flattened = utils.flatten(keyValues, this.delimiter);
 
-    // Flatten changes into a list
-    let flattenedChanges = utils.flatten(keyValues, this.delimiter);
+    // Save changes to our store
+    for (let key in flattened) {
+      let value = flattened[key];
+      this._store.set(key, value);
+    }
+
     // Check changes against each subscription
     this._subscriptions.all.forEach((subscription) => {
 
       // Records that are relevant to this subscription
       let records = (subscription.lean) ?
-        this._generateMatching(flattenedChanges, subscription.path) :
+        this._generateMatching(flattened, subscription.path) :
         this.get(subscription.path);
 
       // Flatten if requested
@@ -121,7 +133,6 @@ module.exports = class Keymit {
         records = utils.expand(records, this.delimiter);
       }
 
-      //console.log(records);
       // Emit changes
       subscription.listener(records);
     });
@@ -168,7 +179,21 @@ module.exports = class Keymit {
 
     // If triggerNow, immediately invoke listener with the values
     if (args.options.triggerNow) {
-      args.listener(this.get(args.path));
+
+      let flattened = this._store.get(args.path);
+
+      // Records that are relevant to this subscription
+      let records = (args.options.lean) ?
+        this._generateMatching(flattened, args.path) :
+        this.get(args.path);
+
+      // Flatten if requested
+      if (!args.options.flatten && typeof records === 'object' && !Array.isArray(records) && records !== null) {
+        records = utils.expand(records, this.delimiter);
+      }
+
+      // Emit changes
+      args.listener(records);
     }
   }
 
@@ -205,6 +230,14 @@ module.exports = class Keymit {
   }
 
   /**
+   *
+   *
+   */
+  _emit(path, subscription) {
+    //
+  }
+
+  /**
    * Gets all sub
    *
    * @param  {Object}  object  The flattened source object
@@ -215,8 +248,9 @@ module.exports = class Keymit {
     let updates = {};
 
     for (let key in object) {
+      let value = object[key];
       if (key.startsWith(path)) {
-        updates[key] = object[key];
+        updates[key] = value;
       }
     }
 

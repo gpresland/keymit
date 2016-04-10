@@ -13,7 +13,7 @@ describe('Subscribe', function () {
 
   it('Should subscribe to a non-initialized path', function (done) {
     keymit.subscribe('earth.canada', function (record) {
-      assert.equal('undefined', typeof record);
+      assert.deepEqual({}, record);
       assert.equal(1, keymit.listenerCount);
       done();
     }, {

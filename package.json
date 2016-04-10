@@ -1,6 +1,6 @@
 {
   "name": "keymit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An object store with event emitters that you can subscribe to",
   "main": "index.js",
   "directories": {
@@ -10,9 +10,12 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
+    "cache",
     "keymit",
+    "key store",
     "object store",
-    "emitter"
+    "emitter",
+    "watch"
   ],
   "author": "Greg Presland",
   "license": "MIT"

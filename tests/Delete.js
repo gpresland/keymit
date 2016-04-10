@@ -15,12 +15,12 @@ describe('Delete', function () {
     keymit.set('earth.canada.ontario', 1);
     keymit.delete('earth.canada.ontario');
     let result = keymit.get('earth.canada.ontario');
-    assert.equal('undefined', typeof result);
+    assert.equal(0, Object.keys(result).length);
   });
 
   it('Should delete all keys/values', function () {
     keymit.delete();
-    assert.equal(0, Object.keys(keymit._store).length);
+    assert.equal(0, Object.keys(keymit.get()).length);
   });
 
   it('Should silently fail to delete a non-existant path', function () {
